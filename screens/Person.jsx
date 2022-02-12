@@ -1,0 +1,290 @@
+import {
+    createStackNavigator
+} from "@react-navigation/stack";
+import {Modal, ScrollView, StyleSheet } from "react-native"
+import { Colors, Drawer, Text, View, ActionBar, Incubator, Picker, Button } from "react-native-ui-lib";
+const Stack = createStackNavigator();
+import { FlatList } from "react-native"
+import React from "react"
+import axios from "axios";
+import { BarCodeScanner } from "expo-barcode-scanner";
+import {useDebounce} from "use-debounce"
+
+function Item(props) {
+    return (
+        <Drawer style={{
+            padding: 10,
+            justifyContent: "center",
+        }} rightItems={[
+            {
+                background: "#eee",
+            },
+            {
+                background: Colors.blue50,
+                icon: require('../assets/icons/info.png'),
+                onPress: () => {props.navigator.navigate("Details", { id: props.id })}
+            },
+            {
+                icon: require('../assets/icons/edit.png'),
+                background: Colors.green30,
+                onPress: () => {props.navigator.navigate("Update", { id: props.id})}
+            },
+            {
+                icon: require('../assets/icons/delete.png'),
+                background: Colors.red30,
+                onPress: () => props.navigator.navigate("Delete", { id: props.id, name: props.text })
+            },
+
+        ]} ><Text center style={{ paddingLeft: 20, paddingVertical: 5 }}>{props.text}</Text></Drawer>
+    )
+}
+
+function DetailItem(props) {
+    return (
+        <Drawer style={{
+            padding: 10,
+            justifyContent: "center",
+        }} rightItems={[
+            {
+                background: "#eee",
+            },
+            {
+                icon: require('../assets/icons/edit.png'),
+                background: Colors.green30,
+                onPress: () => {props.navigation.navigate("Update Item", { id1: props.id1, route: props.route, id: props.id, description: props.description, value: props.value, date: props.date})}
+            },
+            {
+                icon: require('../assets/icons/delete.png'),
+                background: Colors.red30,
+                onPress: () => props.navigation.navigate("Delete Item", { id1: props.id1, route: props.route, id: props.id, description: props.description })
+            },
+        ]} >
+            <Text style={{ paddingLeft: 20, paddingVertical: 5, fontWeight: "bold" }}>{props.description} {props.date}</Text>
+            <Text style={{ paddingLeft: 20 }}>{props.value}</Text>
+        </Drawer>
+    )
+}
+
+const detailStyles = StyleSheet.create({
+    value: {
+        fontWeight: "bold",
+        fontFamily: "monospace",
+    },
+    title: { fontSize: 20, fontWeight: "bold", paddingVertical: 10  }
+})
+
+function CreateItem(props) {
+    const [description, setDescription] = React.useState("")
+    const [date, setDate] = React.useState("")
+    const [value, setValue] = React.useState("")
+    const [loading, setLoading] = React.useState(false)
+    return (
+    <View>
+        <View style={{ marginVertical: 30 }}>
+        <Incubator.TextField floatingPlaceholder placeholder="Keterangan" value={description} onChangeText={e => setDescription(e)} style={{ borderBottomWidth: 1, borderBottomColor: Colors.blue30, marginHorizontal: 10 }} marginH={10} floatingPlaceholderStyle={{marginHorizontal: 10}}/>
+        <Incubator.TextField floatingPlaceholder placeholder="Tanggal" value={date} onChangeText={e => setDate(e)} style={{ borderBottomWidth: 1, borderBottomColor: Colors.blue30, marginHorizontal: 10 }} marginH={10} floatingPlaceholderStyle={{marginHorizontal: 10}}/>
+        <Incubator.TextField floatingPlaceholder placeholder="Jumlah" value={value} onChangeText={e => setValue(e)} style={{ borderBottomWidth: 1, borderBottomColor: Colors.blue30, marginHorizontal: 10 }} marginH={10} floatingPlaceholderStyle={{marginHorizontal: 10}}/>
+        </View>
+        <Button disabled={loading} style={{ marginTop: 20, marginHorizontal: 25 }} onPress = {async () => {
+            setLoading(true)
+            await axios.post(`https://sinar-pagi-harga-barang.herokuapp.com/persons/${props.route.params.id1}/${props.route.params.route}`, {
+                description, date, value, personId: props.route.params.id
+            }).then(() => props.navigation.goBack())
+        }} backgroundColor={Colors.blue40} on><Text white>Tambah +</Text></Button>
+    </View>)
+}
+function UpdateItem(props) {
+    const [description, setDescription] = React.useState(props.route.params.description)
+    const [date, setDate] = React.useState(props.route.params.date)
+    const [value, setValue] = React.useState(props.route.params.value)
+    const [loading, setLoading] = React.useState(false)
+    return (
+    <View>
+        <View style={{ marginVertical: 30 }}>
+        <Incubator.TextField floatingPlaceholder placeholder="Deskripsi" value={description} onChangeText={e => setDescription(e)} style={{ borderBottomWidth: 1, borderBottomColor: Colors.blue30, marginHorizontal: 10 }} marginH={10} floatingPlaceholderStyle={{marginHorizontal: 10}}/>
+        <Incubator.TextField floatingPlaceholder placeholder="Tanggal" value={date} onChangeText={e => setDate(e)} style={{ borderBottomWidth: 1, borderBottomColor: Colors.blue30, marginHorizontal: 10 }} marginH={10} floatingPlaceholderStyle={{marginHorizontal: 10}}/>
+        <Incubator.TextField floatingPlaceholder placeholder="Jumlah" value={value} onChangeText={e => setValue(e)} style={{ borderBottomWidth: 1, borderBottomColor: Colors.blue30, marginHorizontal: 10 }} marginH={10} floatingPlaceholderStyle={{marginHorizontal: 10}}/>
+        </View>
+        <Button disabled={loading} style={{ marginTop: 20, marginHorizontal: 25 }} onPress = {async () => {
+            setLoading(true)
+            await axios.put(`https://sinar-pagi-harga-barang.herokuapp.com/persons/${props.route.params.id1}/${props.route.params.route}/${props.route.params.id}`, {
+                description, value
+            }).then(() => props.navigation.goBack())
+        }} backgroundColor={Colors.blue40} on><Text white>Update</Text></Button>
+    </View>)
+}
+function DeleteItem(props) {
+    const [loading, setLoading] = React.useState(false)
+    return (
+    <View>
+        <View style={{ marginVertical: 30 }}>
+            <Text center>Hapus item <Text underline>{props.route.params.description}</Text>?</Text>
+        </View>
+        <Button disabled={loading} style={{ marginTop: 20, marginHorizontal: 25 }} onPress = {async () => {
+            setLoading(true)
+            await axios.delete(`https://sinar-pagi-harga-barang.herokuapp.com/persons/${props.route.params.id1}/${props.route.params.route}/${props.route.params.id}`).then(() => props.navigation.goBack())
+        }} backgroundColor={Colors.red40} on><Text white>Iya</Text></Button>
+        <Button disabled={loading} style={{ marginTop: 20, marginHorizontal: 25 }} onPress={async () => {
+            setLoading(true)
+            props.navigation.goBack()
+        }} backgroundColor={Colors.green40} on><Text white>Tidak</Text></Button>
+    </View>)
+}
+
+function Details(props) {
+    const [data, setData ] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
+
+    async function reload() {
+        setLoading(true)
+        const {data} = await axios.get(`https://sinar-pagi-harga-barang.herokuapp.com/persons/${props.route.params.id}?select=id,name,description,Debts,Payments`)
+        setData(data)
+        setLoading(false)
+    }
+
+    React.useEffect(() => {
+        axios.get(`https://sinar-pagi-harga-barang.herokuapp.com/persons/${props.route.params.id}?select=id,name,description,Debts,Payments`)
+        .then(result => {
+            setData(result.data);
+            setLoading(false);
+        })
+    }, [])
+
+    return (
+        <ScrollView style={{padding: 10}}>
+            {data && <><Text center style={detailStyles.title}>{data.name}</Text>
+            <View style={{ marginHorizontal: 10, marginTop: 20 }}>
+                <Text>Nama: <Text style={detailStyles.value}>{loading ? "Loading..." : data.name}</Text></Text>
+                <Text>Keterangan: <Text style={detailStyles.value}>{loading ? "Loading..." : data.description}</Text></Text>
+            </View></>}
+            <Text center style={detailStyles.title}> Utang </Text>
+            { data && data.Debts.map(e => (<View key={e.id}><DetailItem date={e.date} id={e.id}  id1={data.id} route="debts"  navigation={props.navigation} description={e.description} value={e.value} /></View>)) }
+            <Button style={{margin: 10}} onPress={() => props.navigation.navigate("Create Item", { id1: data.id, route: "debts" })} backgroundColor={Colors.blue40}><Text white>Tambah +</Text></Button>
+            <Text center style={detailStyles.title}> Pembayaran </Text>
+            { data && data.Payments.map(e =>  (<View key={e.id}><DetailItem date={e.date} id={e.id} id1={data.id} route="payments" navigation={props.navigation} description={e.description} value={e.value} /></View>)) }
+            <Button style={{margin: 10}} onPress={() => props.navigation.navigate("Create Item", { id1: data.id, route: "payments" })} backgroundColor={Colors.blue40}><Text white>Tambah +</Text></Button>
+            <Button onPress={reload} style={{ marginVertical: 5, marginHorizontal: 15 }} backgroundColor={Colors.yellow30}><Text white>Reload</Text></Button>
+
+        </ScrollView>
+    )
+}
+
+function Update(props) {
+    const [name, setName] = React.useState("");
+    const [description, setDescription] = React.useState("");
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        axios.get(`https://sinar-pagi-harga-barang.herokuapp.com/persons/${props?.route?.params?.id}?select=name,description`).then(result => {
+            setName(result.data.name);
+            setDescription(result.data.description);
+        })
+        axios.get("https://sinar-pagi-harga-barang.herokuapp.com/persons").then(result => setDistributors(result.data)).catch(err => console.log(err))
+        setLoading(false);
+    }, [])
+
+    return (
+    <View style={{ padding: 15 }}>
+        <Incubator.TextField textDisabled={loading} placeholder="Nama" value={name} onChangeText={val => setName(val)} floatingPlaceholderStyle={style.floatingPlaceholder}  floatingPlaceholder  style={style.input} />
+        <Incubator.TextField textDisabled={loading} placeholder="Deskripsi" value={description} onChangeText={val => setDescription(val)} floatingPlaceholderStyle={style.floatingPlaceholder} floatingPlaceholder  style={style.input} />
+        <Button onPress={async () => {
+            setLoading(true);
+            await axios.put(`https://sinar-pagi-harga-barang.herokuapp.com/persons/${props.route.params.id}`, {
+                name, description
+            })
+            setLoading(false);
+            props.navigation.navigate("List")
+        }} backgroundColor={Colors.blue40} disabled={loading}><Text white >Update</Text></Button>
+    </View>)
+}
+
+function Delete(props) {
+    return (
+    <View>
+        <Text center style={{ fontWeight: "bold", fontSize: 20, marginVertical: 15 }}>Hapus {props.route.params.name}?</Text>
+        <Button onPress={async () => {
+            await axios.delete(`https://sinar-pagi-harga-barang.herokuapp.com/persons/${props.route.params.id}`)
+            props.navigation.navigate("List")
+        }} style={{backgroundColor: Colors.red30, marginHorizontal: 30, marginVertical: 20}}><Text white>Iya</Text></Button>
+        <Button onPress={() => props.navigation.navigate("List")} style={{backgroundColor: Colors.green30, marginHorizontal: 30, marginVertical: 20}}><Text white>Tidak</Text></Button>
+    </View>)
+} 
+
+const style = StyleSheet.create({
+    floatingPlaceholder: { paddingHorizontal: 10, marginBottom: 10 },
+    input: { padding: 10, flex: 1, paddingVertical: 5, borderWidth: 1, borderColor: "#ddd", marginBottom: 10 }
+})
+
+function Create(props) {
+    const [name, setName] = React.useState("");
+    const [description, setDescription] = React.useState("");
+    const [submitted, setSubmitted] = React.useState(false);
+
+    async function create() {
+        setSubmitted(true);
+        await axios.post("https://sinar-pagi-harga-barang.herokuapp.com/persons", {
+            name,
+            description,
+        }).then(result => {
+            props.navigation.goBack();
+        }).catch(err => console.log(err))
+
+    }
+
+    return (<View style={{margin: 10}}>
+        <Incubator.TextField placeholder="Nama" value={name} onChangeText={val => setName(val)} floatingPlaceholderStyle={style.floatingPlaceholder}  floatingPlaceholder  style={style.input} />
+        <Incubator.TextField placeholder="Deskripsi" value={description} onChangeText={val => setDescription(val)} floatingPlaceholderStyle={style.floatingPlaceholder} floatingPlaceholder  style={style.input} />
+        <Button blue40 disabled={submitted} onPress={create}><Text white>Tambah</Text></Button>
+    </View>)
+}
+
+export function List(props) {
+    const [items, setItems] = React.useState([]);
+    const [page, setPage] = React.useState(1);
+    const [search, setSearch] = React.useState("")
+    const [value] = useDebounce(search, 800);
+    async function reloadData() {
+        setPage(1);
+        axios.get(`https://sinar-pagi-harga-barang.herokuapp.com/persons?take=20&page=${page}`).then(result => setItems(result.data)).catch(err => console.log(err))
+    }
+
+    React.useEffect(() => {
+        axios.get(`https://sinar-pagi-harga-barang.herokuapp.com/persons?take=20&page=${page}`).then(result => setItems(result.data)).catch(err => console.log(err))
+    }, [value, page])
+
+    
+    return ( 
+        <View>
+            <Incubator.TextField floatingPlaceholder placeholder="Search" value={search} onChangeText={e => setSearch(e)} style={{ borderBottomWidth: 1, borderBottomColor: Colors.blue30, marginHorizontal: 10 }} marginH={10} floatingPlaceholderStyle={{marginHorizontal: 10}}/>
+            <FlatList 
+                data={items} 
+                keyExtractor={(x) => x.id.toString()}
+                renderItem={({ item }) => {return <Item id={item.id} text={item.name} navigator={props.navigation}/>}}
+                style={{maxHeight: 300}}
+            />
+            <View style={{ marginVertical: 30 }}>
+                <Button onPress={() => props.navigation.navigate("Create")} style={{ marginVertical: 5, marginHorizontal: 15 }} backgroundColor={Colors.green30}><Text white>Tambah</Text></Button>
+                <Button onPress={reloadData} style={{ marginVertical: 5, marginHorizontal: 15 }} backgroundColor={Colors.yellow30}><Text white>Reload</Text></Button>
+            </View>
+            <ActionBar keepRelative actions={[
+                {label: "Prev", onPress: () => {page > 1 && setPage(page - 1)}, blue30: true},
+                {label: "Next", onPress: () => {setPage(page + 1)}, blue30: true},
+            ]}/>
+        </View>
+    )
+}
+
+export default function PersonScreen(props) {
+    return (
+        <Stack.Navigator>
+            <Stack.Screen name="List" component={List} />
+            <Stack.Screen name="Details" component={Details} />
+            <Stack.Screen name="Create" component={Create} />
+            <Stack.Screen name="Delete" component={Delete} />
+            <Stack.Screen name="Update" component={Update} />
+            <Stack.Screen name="Create Item" component={CreateItem} />
+            <Stack.Screen name="Update Item" component={UpdateItem} />
+            <Stack.Screen name="Delete Item" component={DeleteItem} />
+        </Stack.Navigator>
+    )
+}
